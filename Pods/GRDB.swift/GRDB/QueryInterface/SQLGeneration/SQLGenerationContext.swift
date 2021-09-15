@@ -9,9 +9,7 @@
 ///   and columns.
 ///
 /// - It gathers SQL arguments in order to prevent SQL injection.
-///
-/// :nodoc:
-public final class SQLGenerationContext {
+final class SQLGenerationContext {
     private enum Parent {
         case none(db: Database, argumentsSink: StatementArgumentsSink)
         case context(SQLGenerationContext)
@@ -28,7 +26,7 @@ public final class SQLGenerationContext {
     /// All gathered arguments
     var arguments: StatementArguments { argumentsSink.arguments }
     
-    /// Access to the database connection, the arguments sink, and resolved
+    /// Access to the database connection, the arguments sink, ctes, and resolved
     /// names of table aliases from outer contexts (useful in case of
     /// subquery generation).
     private let parent: Parent
@@ -43,33 +41,48 @@ public final class SQLGenerationContext {
     
     private let resolvedNames: [TableAlias: String]
     private let ownAliases: Set<TableAlias>
+    private let ownCTEs: [String: SQLCTE]
     
     /// Creates a generation context.
     ///
     /// - parameter db: A database connection.
     /// - parameter argumentsSink: An arguments sink.
     /// - parameter aliases: An array of table aliases to disambiguate.
+    /// - parameter ctes: An dictionary of available CTEs.
     init(
         _ db: Database,
         argumentsSink: StatementArgumentsSink = StatementArgumentsSink(),
-        aliases: [TableAlias] = [])
+        aliases: [TableAlias] = [],
+        ctes: OrderedDictionary<String, SQLCTE> = [:])
     {
         self.parent = .none(db: db, argumentsSink: argumentsSink)
         self.resolvedNames = aliases.resolvedNames
         self.ownAliases = Set(aliases)
+        self.ownCTEs = Dictionary(uniqueKeysWithValues: ctes.lazy.map { ($0.lowercased(), $1) })
     }
     
     /// Creates a generation context.
     ///
     /// - parameter parent: A parent context.
     /// - parameter aliases: An array of table aliases to disambiguate.
-    init(
+    /// - parameter ctes: An dictionary of available CTEs.
+    private init(
         parent: SQLGenerationContext,
-        aliases: [TableAlias] = [])
+        aliases: [TableAlias],
+        ctes: OrderedDictionary<String, SQLCTE>)
     {
         self.parent = .context(parent)
         self.resolvedNames = aliases.resolvedNames
         self.ownAliases = Set(aliases)
+        self.ownCTEs = Dictionary(uniqueKeysWithValues: ctes.lazy.map { ($0.lowercased(), $1) })
+    }
+    
+    /// Returns a generation context suitable for subqueries.
+    func subqueryContext(
+        aliases: [TableAlias] = [],
+        ctes: OrderedDictionary<String, SQLCTE> = [:]) -> SQLGenerationContext
+    {
+        SQLGenerationContext(parent: self, aliases: aliases, ctes: ctes)
     }
     
     /// Returns whether arguments could be appended.
@@ -120,6 +133,18 @@ public final class SQLGenerationContext {
             return resolvedName
         }
         return nil
+    }
+    
+    func columnCount(in tableName: String) throws -> Int {
+        if let cte = ownCTEs[tableName.lowercased()] {
+            return try cte.columnCount(db)
+        }
+        switch parent {
+        case let .context(context):
+            return try context.columnCount(in: tableName)
+        case let .none(db: db, argumentsSink: _):
+            return try db.columns(in: tableName).count
+        }
     }
 }
 
@@ -289,6 +314,10 @@ public class TableAlias: Hashable {
     }
     
     func becomeProxy(of base: TableAlias) {
+        if self === base {
+            return
+        }
+        
         switch impl {
         case let .undefined(userName):
             if let userName = userName {
@@ -312,6 +341,10 @@ public class TableAlias: Hashable {
     
     /// Returns nil if aliases can't be merged (conflict in tables, aliases...)
     func merged(with other: TableAlias) -> TableAlias? {
+        if self === other {
+            return self
+        }
+        
         let root = self.root
         let otherRoot = other.root
         switch (root.impl, otherRoot.impl) {
@@ -366,28 +399,28 @@ public class TableAlias: Hashable {
     
     /// Returns a qualified value that is able to resolve ambiguities in
     /// joined queries.
-    public subscript(_ selectable: SQLSelectable) -> SQLSelectable {
-        selectable._qualifiedSelectable(with: self)
+    public subscript(_ selectable: SQLSelectable) -> SQLSelection {
+        selectable.sqlSelection.qualified(with: self)
     }
     
     /// Returns a qualified expression that is able to resolve ambiguities in
     /// joined queries.
-    public subscript(_ expression: SQLExpression) -> SQLExpression {
-        expression._qualifiedExpression(with: self)
+    public subscript(_ expression: SQLSpecificExpressible & SQLSelectable & SQLOrderingTerm) -> SQLExpression {
+        expression.sqlExpression.qualified(with: self)
     }
     
     /// Returns a qualified ordering that is able to resolve ambiguities in
     /// joined queries.
-    public subscript(_ ordering: SQLOrderingTerm) -> SQLOrderingTerm {
-        ordering._qualifiedOrdering(with: self)
+    public subscript(_ ordering: SQLOrderingTerm) -> SQLOrdering {
+        ordering.sqlOrdering.qualified(with: self)
     }
     
     /// Returns a qualified columnn that is able to resolve ambiguities in
     /// joined queries.
     public subscript(_ column: String) -> SQLExpression {
-        Column(column)._qualifiedExpression(with: self)
+        .qualifiedColumn(column, self)
     }
-
+    
     /// [**Experimental**](http://github.com/groue/GRDB.swift#what-are-experimental-features)
     ///
     /// An expression that evaluates to true if the record refered by this
@@ -405,7 +438,7 @@ public class TableAlias: Hashable {
     ///     }
     public var exists: SQLExpression {
         // TODO: this fails with SQL views. Can we do something?
-        _SQLExpressionQualifiedFastPrimaryKey(alias: self) != nil
+        SQLExpression.qualifiedFastPrimaryKey(self) != nil
     }
     
     /// :nodoc:

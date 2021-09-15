@@ -55,7 +55,7 @@ open class Record: FetchableRecord, TableRecord, PersistableRecord {
     /// `didInsert(with:for:)` method is not called upon successful insertion,
     /// even if a row was actually inserted without any conflict.
     ///
-    /// See https://www.sqlite.org/lang_conflict.html
+    /// See <https://www.sqlite.org/lang_conflict.html>
     open class var persistenceConflictPolicy: PersistenceConflictPolicy {
         PersistenceConflictPolicy(insert: .abort, update: .abort)
     }
@@ -116,7 +116,7 @@ open class Record: FetchableRecord, TableRecord, PersistableRecord {
     open func encode(to container: inout PersistenceContainer) {
     }
     
-    /// Notifies the record that it was succesfully inserted.
+    /// Notifies the record that it was successfully inserted.
     ///
     /// Do not call this method directly: it is called for you, in a protected
     /// dispatch queue, with the inserted RowID and the eventual
@@ -274,13 +274,12 @@ open class Record: FetchableRecord, TableRecord, PersistableRecord {
         //
         // But this would trigger two calls to `encode(to:)`.
         let dao = try DAO(db, self)
-        guard
-            let statement = try dao.updateStatement(
+        guard let statement = try dao.updateStatement(
                 columns: columns,
                 onConflict: type(of: self).persistenceConflictPolicy.conflictResolutionForUpdate)
-            else {
-                // Nil primary key
-                throw dao.makeRecordNotFoundError()
+        else {
+            // Nil primary key
+            throw dao.makeRecordNotFoundError()
         }
         try statement.execute()
         if db.changesCount == 0 {

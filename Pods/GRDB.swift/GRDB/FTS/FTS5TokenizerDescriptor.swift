@@ -5,7 +5,7 @@
 ///         t.tokenizer = .unicode61() // FTS5TokenizerDescriptor
 ///     }
 ///
-/// See https://www.sqlite.org/fts5.html#tokenizers
+/// See <https://www.sqlite.org/fts5.html#tokenizers>
 public struct FTS5TokenizerDescriptor {
     /// The tokenizer components
     ///
@@ -55,11 +55,11 @@ public struct FTS5TokenizerDescriptor {
     ///     - tokenCharacters: Unless empty (the default), SQLite will
     ///       consider these characters as token characters.
     ///
-    /// See https://www.sqlite.org/fts5.html#ascii_tokenizer
+    /// See <https://www.sqlite.org/fts5.html#ascii_tokenizer>
     public static func ascii(
         separators: Set<Character> = [],
         tokenCharacters: Set<Character> = [])
-        -> FTS5TokenizerDescriptor {
+    -> FTS5TokenizerDescriptor {
         var components: [String] = ["ascii"]
         if !separators.isEmpty {
             // TODO: test "=" and "\"", "(" and ")" as separators, with
@@ -108,7 +108,7 @@ public struct FTS5TokenizerDescriptor {
     ///     - base: An eventual wrapping tokenizer which replaces the
     //        default unicode61() base tokenizer.
     ///
-    /// See https://www.sqlite.org/fts5.html#porter_tokenizer
+    /// See <https://www.sqlite.org/fts5.html#porter_tokenizer>
     public static func porter(wrapping base: FTS5TokenizerDescriptor? = nil) -> FTS5TokenizerDescriptor {
         if let base = base {
             return FTS5TokenizerDescriptor(components: ["porter"] + base.components)
@@ -131,12 +131,12 @@ public struct FTS5TokenizerDescriptor {
     ///     - tokenCharacters: Unless empty (the default), SQLite will
     ///       consider these characters as token characters.
     ///
-    /// See https://www.sqlite.org/fts5.html#unicode61_tokenizer
+    /// See <https://www.sqlite.org/fts5.html#unicode61_tokenizer>
     public static func unicode61(
         diacritics: FTS5.Diacritics = .removeLegacy,
         separators: Set<Character> = [],
         tokenCharacters: Set<Character> = [])
-        -> FTS5TokenizerDescriptor
+    -> FTS5TokenizerDescriptor
     {
         var components: [String] = ["unicode61"]
         switch diacritics {

@@ -71,6 +71,16 @@ public protocol DatabaseWriter: DatabaseReader {
     func barrierWriteWithoutTransaction<T>(_ updates: (Database) throws -> T) rethrows -> T
     
     /// Asynchronously executes database updates in a protected dispatch queue,
+    /// outside of any transaction, and returns the result.
+    ///
+    /// Updates are guaranteed an exclusive access to the database. They wait
+    /// until all pending writes and reads are completed. They postpone all
+    /// other writes and reads until they are completed.
+    ///
+    /// - parameter updates: The updates to the database.
+    func asyncBarrierWriteWithoutTransaction(_ updates: @escaping (Database) -> Void)
+    
+    /// Asynchronously executes database updates in a protected dispatch queue,
     /// wrapped inside a transaction.
     ///
     /// If the updates throw an error, the transaction is rollbacked.
@@ -305,10 +315,49 @@ extension DatabaseWriter {
     /// Rebuilds the database file, repacking it into a minimal amount of
     /// disk space.
     ///
-    /// See https://www.sqlite.org/lang_vacuum.html for more information.
+    /// See <https://www.sqlite.org/lang_vacuum.html> for more information.
     public func vacuum() throws {
         try writeWithoutTransaction { try $0.execute(sql: "VACUUM") }
     }
+    
+    // VACUUM INTO was introduced in SQLite 3.27.0:
+    // https://www.sqlite.org/releaselog/3_27_0.html
+    //
+    // Old versions of SQLCipher won't have it, but I don't know how to perform
+    // availability checks that depend on the version of the SQLCipher CocoaPod
+    // chosen by the application. So let's just have the method fail at runtime.
+    //
+    // This method is declared on DatabaseWriter instead of DatabaseReader,
+    // so that it is not available on DatabaseSnaphot. VACUUM INTO is not
+    // available inside the transaction that is kept open by DatabaseSnaphot.
+    #if GRDBCUSTOMSQLITE || GRDBCIPHER
+    /// Creates a new database file at the specified path with a minimum
+    /// amount of disk space.
+    ///
+    /// Databases encrypted with SQLCipher are copied with the same password
+    /// and configuration as the original database.
+    ///
+    /// See <https://www.sqlite.org/lang_vacuum.html#vacuuminto> for more information.
+    ///
+    /// - Parameter filePath: file path for new database
+    public func vacuum(into filePath: String) throws {
+        try writeWithoutTransaction {
+            try $0.execute(sql: "VACUUM INTO ?", arguments: [filePath])
+        }
+    }
+    #else
+    /// Creates a new database file at the specified path with a minimum
+    /// amount of disk space.
+    /// See <https://www.sqlite.org/lang_vacuum.html#vacuuminto> for more information.
+    ///
+    /// - Parameter filePath: file path for new database
+    @available(OSX 10.16, iOS 14, tvOS 14, watchOS 7, *)
+    public func vacuum(into filePath: String) throws {
+        try writeWithoutTransaction {
+            try $0.execute(sql: "VACUUM INTO ?", arguments: [filePath])
+        }
+    }
+    #endif
     
     // MARK: - Database Observation
     
@@ -317,7 +366,7 @@ extension DatabaseWriter {
         observation: ValueObservation<Reducer>,
         scheduling scheduler: ValueObservationScheduler,
         onChange: @escaping (Reducer.Value) -> Void)
-        -> ValueObserver<Reducer> // For testability
+    -> ValueObserver<Reducer> // For testability
     {
         assert(!configuration.readonly, "Use _addReadOnly(observation:) instead")
         
@@ -379,7 +428,7 @@ extension DatabaseWriter {
     @available(OSX 10.15, iOS 13, tvOS 13, watchOS 6, *)
     public func writePublisher<Output>(
         updates: @escaping (Database) throws -> Output)
-        -> DatabasePublishers.Write<Output>
+    -> DatabasePublishers.Write<Output>
     {
         writePublisher(receiveOn: DispatchQueue.main, updates: updates)
     }
@@ -402,18 +451,18 @@ extension DatabaseWriter {
     public func writePublisher<S, Output>(
         receiveOn scheduler: S,
         updates: @escaping (Database) throws -> Output)
-        -> DatabasePublishers.Write<Output>
-        where S: Scheduler
+    -> DatabasePublishers.Write<Output>
+    where S: Scheduler
     {
         OnDemandFuture({ fulfill in
             self.asyncWrite(updates, completion: { _, result in
                 fulfill(result)
             })
         })
-            // We don't want users to process emitted values on a
-            // database dispatch queue.
-            .receiveValues(on: scheduler)
-            .eraseToWritePublisher()
+        // We don't want users to process emitted values on a
+        // database dispatch queue.
+        .receiveValues(on: scheduler)
+        .eraseToWritePublisher()
     }
     
     /// Returns a Publisher that asynchronously writes into the database.
@@ -431,7 +480,7 @@ extension DatabaseWriter {
     public func writePublisher<T, Output>(
         updates: @escaping (Database) throws -> T,
         thenRead value: @escaping (Database, T) throws -> Output)
-        -> DatabasePublishers.Write<Output>
+    -> DatabasePublishers.Write<Output>
     {
         writePublisher(receiveOn: DispatchQueue.main, updates: updates, thenRead: value)
     }
@@ -455,8 +504,8 @@ extension DatabaseWriter {
         receiveOn scheduler: S,
         updates: @escaping (Database) throws -> T,
         thenRead value: @escaping (Database, T) throws -> Output)
-        -> DatabasePublishers.Write<Output>
-        where S: Scheduler
+    -> DatabasePublishers.Write<Output>
+    where S: Scheduler
     {
         OnDemandFuture({ fulfill in
             self.asyncWriteWithoutTransaction { db in
@@ -475,10 +524,10 @@ extension DatabaseWriter {
                 }
             }
         })
-            // We don't want users to process emitted values on a
-            // database dispatch queue.
-            .receiveValues(on: scheduler)
-            .eraseToWritePublisher()
+        // We don't want users to process emitted values on a
+        // database dispatch queue.
+        .receiveValues(on: scheduler)
+        .eraseToWritePublisher()
     }
 }
 
@@ -620,6 +669,10 @@ public final class AnyDatabaseWriter: DatabaseWriter {
         try base.barrierWriteWithoutTransaction(updates)
     }
     
+    public func asyncBarrierWriteWithoutTransaction(_ updates: @escaping (Database) -> Void) {
+        base.asyncBarrierWriteWithoutTransaction(updates)
+    }
+    
     public func asyncWrite<T>(
         _ updates: @escaping (Database) throws -> T,
         completion: @escaping (Database, Result<T, Error>) -> Void)
@@ -647,7 +700,7 @@ public final class AnyDatabaseWriter: DatabaseWriter {
         observation: ValueObservation<Reducer>,
         scheduling scheduler: ValueObservationScheduler,
         onChange: @escaping (Reducer.Value) -> Void)
-        -> DatabaseCancellable
+    -> DatabaseCancellable
     {
         base._add(
             observation: observation,

@@ -5,7 +5,7 @@ import Dispatch
 ///
 /// See DatabasePool.makeSnapshot()
 ///
-/// For more information, read about "snapshot isolation" at https://sqlite.org/isolation.html
+/// For more information, read about "snapshot isolation" at <https://sqlite.org/isolation.html>
 public class DatabaseSnapshot: DatabaseReader {
     private var serializedDatabase: SerializedDatabase
     
@@ -26,7 +26,6 @@ public class DatabaseSnapshot: DatabaseReader {
         serializedDatabase = try SerializedDatabase(
             path: path,
             configuration: configuration,
-            schemaCache: DatabaseSchemaCache(),
             defaultLabel: defaultLabel,
             purpose: purpose)
         
@@ -41,7 +40,7 @@ public class DatabaseSnapshot: DatabaseReader {
             try db.beginTransaction(.deferred)
             
             // Acquire snapshot isolation
-            try db.internalCachedSelectStatement(sql: "SELECT rootpage FROM sqlite_master LIMIT 1").makeCursor().next()
+            try db.internalCachedStatement(sql: "SELECT rootpage FROM sqlite_master LIMIT 1").makeCursor().next()
             
             #if SQLITE_ENABLE_SNAPSHOT
             // We must expect an error: https://www.sqlite.org/c3ref/snapshot_get.html
@@ -126,7 +125,7 @@ extension DatabaseSnapshot {
         observation: ValueObservation<Reducer>,
         scheduling scheduler: ValueObservationScheduler,
         onChange: @escaping (Reducer.Value) -> Void)
-        -> DatabaseCancellable
+    -> DatabaseCancellable
     {
         _addReadOnly(
             observation: observation,

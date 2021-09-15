@@ -107,8 +107,20 @@ public final class DatabaseFunction: Hashable {
         self.kind = .aggregate { Aggregate() }
     }
     
+    /// Returns an SQL expression that applies the function.
+    ///
+    /// See <https://github.com/groue/GRDB.swift/#sql-functions>
+    public func callAsFunction(_ arguments: SQLExpressible...) -> SQLExpression {
+        switch kind {
+        case .aggregate:
+            return .function(name, arguments.map(\.sqlExpression))
+        case .function:
+            return .aggregate(name, arguments.map(\.sqlExpression))
+        }
+    }
+
     /// Calls sqlite3_create_function_v2
-    /// See https://sqlite.org/c3ref/create_function.html
+    /// See <https://sqlite.org/c3ref/create_function.html>
     func install(in db: Database) {
         // Retain the function definition
         let definition = kind.definition
@@ -126,16 +138,16 @@ public final class DatabaseFunction: Hashable {
             { definitionP in
                 // Release the function definition
                 Unmanaged<AnyObject>.fromOpaque(definitionP!).release()
-        })
+            })
         
         guard code == SQLITE_OK else {
             // Assume a GRDB bug: there is no point throwing any error.
-            fatalError(DatabaseError(resultCode: code, message: db.lastErrorMessage).description)
+            fatalError(DatabaseError(resultCode: code, message: db.lastErrorMessage))
         }
     }
     
     /// Calls sqlite3_create_function_v2
-    /// See https://sqlite.org/c3ref/create_function.html
+    /// See <https://sqlite.org/c3ref/create_function.html>
     func uninstall(in db: Database) {
         let code = sqlite3_create_function_v2(
             db.sqliteConnection,
@@ -146,13 +158,13 @@ public final class DatabaseFunction: Hashable {
         
         guard code == SQLITE_OK else {
             // Assume a GRDB bug: there is no point throwing any error.
-            fatalError(DatabaseError(resultCode: code, message: db.lastErrorMessage).description)
+            fatalError(DatabaseError(resultCode: code, message: db.lastErrorMessage))
         }
     }
     
     /// The way to compute the result of a function.
     /// Feeds the `pApp` parameter of sqlite3_create_function_v2
-    /// http://sqlite.org/capi3ref.html#sqlite3_create_function
+    /// <http://sqlite.org/capi3ref.html#sqlite3_create_function>
     private class FunctionDefinition {
         let compute: (Int32, UnsafeMutablePointer<OpaquePointer?>?) throws -> DatabaseValueConvertible?
         init(compute: @escaping (Int32, UnsafeMutablePointer<OpaquePointer?>?) throws -> DatabaseValueConvertible?) {
@@ -162,7 +174,7 @@ public final class DatabaseFunction: Hashable {
     
     /// The way to start an aggregate.
     /// Feeds the `pApp` parameter of sqlite3_create_function_v2
-    /// http://sqlite.org/capi3ref.html#sqlite3_create_function
+    /// <http://sqlite.org/capi3ref.html#sqlite3_create_function>
     private class AggregateDefinition {
         let makeAggregate: () -> DatabaseAggregate
         init(makeAggregate: @escaping () -> DatabaseAggregate) {
@@ -180,7 +192,7 @@ public final class DatabaseFunction: Hashable {
     }
     
     /// A function kind: an "SQL function" or an "aggregate".
-    /// See http://sqlite.org/capi3ref.html#sqlite3_create_function
+    /// See <http://sqlite.org/capi3ref.html#sqlite3_create_function>
     private enum Kind {
         /// A regular function: SELECT f(1)
         case function((Int32, UnsafeMutablePointer<OpaquePointer?>?) throws -> DatabaseValueConvertible?)
@@ -189,7 +201,7 @@ public final class DatabaseFunction: Hashable {
         case aggregate(() -> DatabaseAggregate)
         
         /// Feeds the `pApp` parameter of sqlite3_create_function_v2
-        /// http://sqlite.org/capi3ref.html#sqlite3_create_function
+        /// <http://sqlite.org/capi3ref.html#sqlite3_create_function>
         var definition: AnyObject {
             switch self {
             case .function(let compute):
@@ -200,7 +212,7 @@ public final class DatabaseFunction: Hashable {
         }
         
         /// Feeds the `xFunc` parameter of sqlite3_create_function_v2
-        /// http://sqlite.org/capi3ref.html#sqlite3_create_function
+        /// <http://sqlite.org/capi3ref.html#sqlite3_create_function>
         var xFunc: (@convention(c) (OpaquePointer?, Int32, UnsafeMutablePointer<OpaquePointer?>?) -> Void)? {
             guard case .function = self else { return nil }
             return { (sqliteContext, argc, argv) in
@@ -218,7 +230,7 @@ public final class DatabaseFunction: Hashable {
         }
         
         /// Feeds the `xStep` parameter of sqlite3_create_function_v2
-        /// http://sqlite.org/capi3ref.html#sqlite3_create_function
+        /// <http://sqlite.org/capi3ref.html#sqlite3_create_function>
         var xStep: (@convention(c) (OpaquePointer?, Int32, UnsafeMutablePointer<OpaquePointer?>?) -> Void)? {
             guard case .aggregate = self else { return nil }
             return { (sqliteContext, argc, argv) in
@@ -238,7 +250,7 @@ public final class DatabaseFunction: Hashable {
         }
         
         /// Feeds the `xFinal` parameter of sqlite3_create_function_v2
-        /// http://sqlite.org/capi3ref.html#sqlite3_create_function
+        /// <http://sqlite.org/capi3ref.html#sqlite3_create_function>
         var xFinal: (@convention(c) (OpaquePointer?) -> Void)? {
             guard case .aggregate = self else { return nil }
             return { (sqliteContext) in
@@ -266,8 +278,8 @@ public final class DatabaseFunction: Hashable {
     ///
     /// The result must be released when the aggregate concludes.
     ///
-    /// See https://sqlite.org/c3ref/context.html
-    /// See https://sqlite.org/c3ref/aggregate_context.html
+    /// See <https://sqlite.org/c3ref/context.html>
+    /// See <https://sqlite.org/c3ref/aggregate_context.html>
     private static func unmanagedAggregateContext(_ sqliteContext: OpaquePointer?) -> Unmanaged<AggregateContext> {
         // > The first time the sqlite3_aggregate_context(C,N) routine is called
         // > for a particular aggregate function, SQLite allocates N of memory,

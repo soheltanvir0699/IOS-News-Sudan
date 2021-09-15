@@ -3,6 +3,7 @@ import Glibc
 #endif
 
 /// A protocol around sqlite3_set_authorizer
+@usableFromInline
 protocol StatementAuthorizer: AnyObject {
     func authorize(
         _ actionCode: Int32,
@@ -10,7 +11,7 @@ protocol StatementAuthorizer: AnyObject {
         _ cString2: UnsafePointer<Int8>?,
         _ cString3: UnsafePointer<Int8>?,
         _ cString4: UnsafePointer<Int8>?)
-        -> Int32
+    -> Int32
 }
 
 /// A class that gathers information about one statement during its compilation.
@@ -28,7 +29,7 @@ final class StatementCompilationAuthorizer: StatementAuthorizer {
     
     /// Not nil if a statement is a BEGIN/COMMIT/ROLLBACK/RELEASE transaction or
     /// savepoint statement.
-    var transactionEffect: UpdateStatement.TransactionEffect?
+    var transactionEffect: Statement.TransactionEffect?
     
     private var isDropStatement = false
     
@@ -38,13 +39,13 @@ final class StatementCompilationAuthorizer: StatementAuthorizer {
         _ cString2: UnsafePointer<Int8>?,
         _ cString3: UnsafePointer<Int8>?,
         _ cString4: UnsafePointer<Int8>?)
-        -> Int32
+    -> Int32
     {
-//        print("""
-//            StatementCompilationAuthorizer: \
-//            \(AuthorizerActionCode(rawValue: actionCode)) \
-//            \([cString1, cString2, cString3, cString4].compactMap { $0.map(String.init) })
-//            """)
+        // print("""
+        //     StatementCompilationAuthorizer: \
+        //     \(AuthorizerActionCode(rawValue: actionCode)) \
+        //     \([cString1, cString2, cString3, cString4].compactMap { $0.map(String.init) })
+        //     """)
         
         switch actionCode {
         case SQLITE_DROP_TABLE, SQLITE_DROP_VTABLE, SQLITE_DROP_TEMP_TABLE,
@@ -55,7 +56,7 @@ final class StatementCompilationAuthorizer: StatementAuthorizer {
             invalidatesDatabaseSchemaCache = true
             return SQLITE_OK
             
-        case SQLITE_ALTER_TABLE, SQLITE_DETACH,
+        case SQLITE_ATTACH, SQLITE_DETACH, SQLITE_ALTER_TABLE,
              SQLITE_CREATE_INDEX, SQLITE_CREATE_TABLE,
              SQLITE_CREATE_TEMP_INDEX, SQLITE_CREATE_TEMP_TABLE,
              SQLITE_CREATE_TEMP_TRIGGER, SQLITE_CREATE_TEMP_VIEW,
@@ -173,13 +174,13 @@ final class TruncateOptimizationBlocker: StatementAuthorizer {
         _ cString2: UnsafePointer<Int8>?,
         _ cString3: UnsafePointer<Int8>?,
         _ cString4: UnsafePointer<Int8>?)
-        -> Int32
+    -> Int32
     {
-//        print("""
-//            TruncateOptimizationBlocker: \
-//            \(AuthorizerActionCode(rawValue: actionCode)) \
-//            \([cString1, cString2, cString3, cString4].compactMap { $0.map(String.init) })
-//            """)
+        // print("""
+        //     TruncateOptimizationBlocker: \
+        //     \(AuthorizerActionCode(rawValue: actionCode)) \
+        //     \([cString1, cString2, cString3, cString4].compactMap { $0.map(String.init) })
+        //     """)
         return (actionCode == SQLITE_DELETE) ? SQLITE_IGNORE : SQLITE_OK
     }
 }

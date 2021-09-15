@@ -15,7 +15,7 @@ public typealias FTS5TokenCallback = @convention(c) (
 
 /// The reason why FTS5 is requesting tokenization.
 ///
-/// See https://www.sqlite.org/fts5.html#custom_tokenizers
+/// See <https://www.sqlite.org/fts5.html#custom_tokenizers>
 public struct FTS5Tokenization: OptionSet {
     public let rawValue: Int32
     
@@ -41,7 +41,7 @@ public protocol FTS5Tokenizer: AnyObject {
     /// Tokenizes the text described by `pText` and `nText`, and
     /// notifies found tokens to the `tokenCallback` function.
     ///
-    /// It matches the `xTokenize` function documented at https://www.sqlite.org/fts5.html#custom_tokenizers
+    /// It matches the `xTokenize` function documented at <https://www.sqlite.org/fts5.html#custom_tokenizers>
     ///
     /// - parameters:
     ///     - context: An opaque pointer that is the first argument to
@@ -51,14 +51,14 @@ public protocol FTS5Tokenizer: AnyObject {
     ///       nul-terminated.
     ///     - nText: The number of bytes in the tokenized text.
     ///     - tokenCallback: The function to call for each found token.
-    ///       It matches the `xToken` callback at https://www.sqlite.org/fts5.html#custom_tokenizers
+    ///       It matches the `xToken` callback at <https://www.sqlite.org/fts5.html#custom_tokenizers>
     func tokenize(
         context: UnsafeMutableRawPointer?,
         tokenization: FTS5Tokenization,
         pText: UnsafePointer<Int8>?,
         nText: Int32,
         tokenCallback: @escaping FTS5TokenCallback)
-        -> Int32
+    -> Int32
 }
 
 private class TokenizeContext {
@@ -99,22 +99,20 @@ extension FTS5Tokenizer {
                         }
                         
                         // Extract token
-                        guard
-                            let token = pToken.flatMap({
-                                String(
-                                    data: Data(
-                                        bytesNoCopy: UnsafeMutableRawPointer(mutating: $0),
-                                        count: Int(nToken),
-                                        deallocator: .none),
-                                    encoding: .utf8) })
-                            else {
-                                return SQLITE_OK
+                        guard let token = pToken.flatMap({ String(
+                                                            data: Data(
+                                                                bytesNoCopy: UnsafeMutableRawPointer(mutating: $0),
+                                                                count: Int(nToken),
+                                                                deallocator: .none),
+                                                            encoding: .utf8) })
+                        else {
+                            return SQLITE_OK
                         }
                         
                         let context = contextPointer.assumingMemoryBound(to: TokenizeContext.self).pointee
                         context.tokens.append((token, FTS5TokenFlags(rawValue: flags)))
                         return SQLITE_OK
-                })
+                    })
                 if code != SQLITE_OK {
                     throw DatabaseError(resultCode: code)
                 }
@@ -153,27 +151,27 @@ extension Database {
             
             var tokenizerPointer: OpaquePointer? = nil
             let code: Int32
-            if let argument = arguments.first {
-                // Turn [String] into ContiguousArray<UnsafePointer<Int8>>
-                // (for an alternative implementation see https://oleb.net/blog/2016/10/swift-array-of-c-strings/)
-                func convertArguments<Result>(
-                    _ array: inout ContiguousArray<UnsafePointer<Int8>>,
-                    _ car: String,
-                    _ cdr: [String],
-                    _ body: (ContiguousArray<UnsafePointer<Int8>>) -> Result)
-                    -> Result
+            if arguments.isEmpty {
+                code = xCreate(contextPointer, nil, 0, &tokenizerPointer)
+            } else {
+                func withArrayOfCStrings<Result>(
+                    _ input: [String],
+                    _ output: inout ContiguousArray<UnsafePointer<Int8>>,
+                    _ accessor: (ContiguousArray<UnsafePointer<Int8>>) -> Result)
+                -> Result
                 {
-                    car.withCString { cString in
-                        if let car = cdr.first {
-                            array.append(cString)
-                            return convertArguments(&array, car, Array(cdr.suffix(from: 1)), body)
-                        } else {
-                            return body(array)
+                    if output.count == input.count {
+                        return accessor(output)
+                    } else {
+                        return input[output.count].withCString { (cString) -> Result in
+                            output.append(cString)
+                            return withArrayOfCStrings(input, &output, accessor)
                         }
                     }
                 }
                 var cStrings = ContiguousArray<UnsafePointer<Int8>>()
-                code = convertArguments(&cStrings, argument, Array(arguments.suffix(from: 1))) { cStrings in
+                cStrings.reserveCapacity(arguments.count)
+                code = withArrayOfCStrings(arguments, &cStrings) { (cStrings) in
                     cStrings.withUnsafeBufferPointer { azArg in
                         xCreate(
                             contextPointer,
@@ -182,8 +180,6 @@ extension Database {
                             &tokenizerPointer)
                     }
                 }
-            } else {
-                code = xCreate(contextPointer, nil, 0, &tokenizerPointer)
             }
             
             guard code == SQLITE_OK else {
@@ -209,7 +205,7 @@ extension Database {
             pText: UnsafePointer<Int8>?,
             nText: Int32,
             tokenCallback: @escaping FTS5TokenCallback)
-            -> Int32
+        -> Int32
         {
             guard let xTokenize = xTokenizer.xTokenize else {
                 return SQLITE_ERROR

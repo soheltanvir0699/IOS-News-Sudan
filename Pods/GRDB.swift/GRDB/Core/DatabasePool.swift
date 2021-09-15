@@ -42,7 +42,6 @@ public final class DatabasePool: DatabaseWriter {
         writer = try SerializedDatabase(
             path: path,
             configuration: configuration,
-            schemaCache: DatabaseSchemaCache(),
             defaultLabel: "GRDB.DatabasePool",
             purpose: "writer")
         
@@ -60,7 +59,6 @@ public final class DatabasePool: DatabaseWriter {
             return try SerializedDatabase(
                 path: path,
                 configuration: readerConfiguration,
-                schemaCache: DatabaseSchemaCache(),
                 defaultLabel: "GRDB.DatabasePool",
                 purpose: "reader.\(readerCount)")
         })
@@ -369,7 +367,7 @@ extension DatabasePool: DatabaseReader {
                 } catch {
                     block(.failure(error))
                 }
-        }
+            }
     }
     
     /// :nodoc:
@@ -414,7 +412,7 @@ extension DatabasePool: DatabaseReader {
                 } catch {
                     block(.failure(error))
                 }
-        }
+            }
     }
     
     /// Synchronously executes a read-only block in a protected dispatch queue,
@@ -717,6 +715,22 @@ extension DatabasePool: DatabaseReader {
         }
     }
     
+    /// Asynchronously executes database updates in a protected dispatch queue,
+    /// outside of any transaction, and returns the result.
+    ///
+    /// Updates are guaranteed an exclusive access to the database. They wait
+    /// until all pending writes and reads are completed. They postpone all
+    /// other writes and reads until they are completed.
+    ///
+    /// - important: Reads executed by concurrent *database snapshots* are not
+    ///   considered: they can run concurrently with the barrier updates.
+    /// - parameter updates: The updates to the database.
+    public func asyncBarrierWriteWithoutTransaction(_ updates: @escaping (Database) -> Void) {
+        readerPool.asyncBarrier {
+            self.writer.sync(updates)
+        }
+    }
+    
     /// Synchronously executes database updates in a protected dispatch queue,
     /// wrapped inside a transaction, and returns the result.
     ///
@@ -740,7 +754,7 @@ extension DatabasePool: DatabaseReader {
     /// - parameters:
     ///     - kind: The transaction type (default nil). If nil, the transaction
     ///       type is configuration.defaultTransactionKind, which itself
-    ///       defaults to .deferred. See https://www.sqlite.org/lang_transaction.html
+    ///       defaults to .deferred. See <https://www.sqlite.org/lang_transaction.html>
     ///       for more information.
     ///     - updates: The updates to the database.
     /// - throws: The error thrown by the updates, or by the
@@ -748,7 +762,7 @@ extension DatabasePool: DatabaseReader {
     public func writeInTransaction(
         _ kind: Database.TransactionKind? = nil,
         _ updates: (Database) throws -> Database.TransactionCompletion)
-        throws
+    throws
     {
         try writer.sync { db in
             try db.inTransaction(kind) {
@@ -793,7 +807,7 @@ extension DatabasePool: DatabaseReader {
         observation: ValueObservation<Reducer>,
         scheduling scheduler: ValueObservationScheduler,
         onChange: @escaping (Reducer.Value) -> Void)
-        -> DatabaseCancellable
+    -> DatabaseCancellable
     {
         if configuration.readonly {
             return _addReadOnly(
@@ -823,7 +837,7 @@ extension DatabasePool: DatabaseReader {
         observation: ValueObservation<Reducer>,
         scheduling scheduler: ValueObservationScheduler,
         onChange: @escaping (Reducer.Value) -> Void)
-        -> ValueObserver<Reducer> // For testability
+    -> ValueObserver<Reducer> // For testability
     {
         assert(!configuration.readonly, "Use _addReadOnly(observation:) instead")
         assert(!observation.requiresWriteAccess, "Use _addWriteOnly(observation:) instead")
@@ -903,7 +917,7 @@ extension DatabasePool: DatabaseReader {
                     } catch {
                         observer.notifyErrorAndComplete(error)
                     }
-            }
+                }
         }
         #else
         if scheduler.immediateInitialValue() {
@@ -1058,7 +1072,7 @@ extension DatabasePool {
     /// You can create as many snapshots as you need, regardless of the maximum
     /// number of reader connections in the pool.
     ///
-    /// For more information, read about "snapshot isolation" at https://sqlite.org/isolation.html
+    /// For more information, read about "snapshot isolation" at <https://sqlite.org/isolation.html>
     public func makeSnapshot() throws -> DatabaseSnapshot {
         // Sanity check
         if writer.onValidQueue {

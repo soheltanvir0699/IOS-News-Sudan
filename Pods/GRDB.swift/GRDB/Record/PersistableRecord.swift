@@ -1,5 +1,5 @@
 extension Database.ConflictResolution {
-    @usableFromInline var invalidatesLastInsertedRowID: Bool {
+    var invalidatesLastInsertedRowID: Bool {
         switch self {
         case .abort, .fail, .rollback, .replace:
             return false
@@ -38,7 +38,7 @@ extension PersistenceError {
 ///
 /// See `MutablePersistableRecord.persistenceConflictPolicy`.
 ///
-/// See https://www.sqlite.org/lang_conflict.html
+/// See <https://www.sqlite.org/lang_conflict.html>
 public struct PersistenceConflictPolicy {
     /// The conflict resolution algorithm for insertions
     public let conflictResolutionForInsert: Database.ConflictResolution
@@ -67,10 +67,10 @@ public protocol MutablePersistableRecord: EncodableRecord, TableRecord {
     /// `didInsert(with:for:)` method is not called upon successful insertion,
     /// even if a row was actually inserted without any conflict.
     ///
-    /// See https://www.sqlite.org/lang_conflict.html
+    /// See <https://www.sqlite.org/lang_conflict.html>
     static var persistenceConflictPolicy: PersistenceConflictPolicy { get }
     
-    /// Notifies the record that it was succesfully inserted.
+    /// Notifies the record that it was successfully inserted.
     ///
     /// Do not call this method directly: it is called for you, in a protected
     /// dispatch queue, with the inserted RowID and the eventual
@@ -186,7 +186,7 @@ extension MutablePersistableRecord {
         PersistenceConflictPolicy(insert: .abort, update: .abort)
     }
     
-    /// Notifies the record that it was succesfully inserted.
+    /// Notifies the record that it was successfully inserted.
     ///
     /// The default implementation does nothing.
     public mutating func didInsert(with rowID: Int64, for column: String?) {
@@ -220,8 +220,8 @@ extension MutablePersistableRecord {
     ///   PersistenceError.recordNotFound is thrown if the primary key does not
     ///   match any row in the database.
     public func update<Sequence>(_ db: Database, columns: Sequence)
-        throws
-        where Sequence: Swift.Sequence, Sequence.Element: ColumnExpression
+    throws
+    where Sequence: Swift.Sequence, Sequence.Element: ColumnExpression
     {
         try update(db, columns: Set(columns.map(\.name)))
     }
@@ -234,8 +234,8 @@ extension MutablePersistableRecord {
     ///   PersistenceError.recordNotFound is thrown if the primary key does not
     ///   match any row in the database.
     public func update<Sequence>(_ db: Database, columns: Sequence)
-        throws
-        where Sequence: Swift.Sequence, Sequence.Element == String
+    throws
+    where Sequence: Swift.Sequence, Sequence.Element == String
     {
         try update(db, columns: Set(columns))
     }
@@ -350,7 +350,6 @@ extension MutablePersistableRecord {
     // MARK: - CRUD Internals
     
     /// Return a non-nil dictionary if record has a non-null primary key
-    @usableFromInline
     func primaryKey(_ db: Database) throws -> [String: DatabaseValue]? {
         let databaseTableName = type(of: self).databaseTableName
         let primaryKeyInfo = try db.primaryKey(databaseTableName)
@@ -371,7 +370,6 @@ extension MutablePersistableRecord {
     /// that adopt MutablePersistableRecord can invoke performInsert() in their
     /// implementation of insert(). They should not provide their own
     /// implementation of performInsert().
-    @inlinable
     public mutating func performInsert(_ db: Database) throws {
         let conflictResolutionForInsert = type(of: self).persistenceConflictPolicy.conflictResolutionForInsert
         let dao = try DAO(db, self)
@@ -395,16 +393,14 @@ extension MutablePersistableRecord {
     /// - throws: A DatabaseError is thrown whenever an SQLite error occurs.
     ///   PersistenceError.recordNotFound is thrown if the primary key does not
     ///   match any row in the database.
-    @inlinable
     public func performUpdate(_ db: Database, columns: Set<String>) throws {
         let dao = try DAO(db, self)
-        guard
-            let statement = try dao.updateStatement(
+        guard let statement = try dao.updateStatement(
                 columns: columns,
                 onConflict: type(of: self).persistenceConflictPolicy.conflictResolutionForUpdate)
-            else {
-                // Nil primary key
-                throw dao.makeRecordNotFoundError()
+        else {
+            // Nil primary key
+            throw dao.makeRecordNotFoundError()
         }
         try statement.execute()
         if db.changesCount == 0 {
@@ -421,7 +417,6 @@ extension MutablePersistableRecord {
     /// implementation of performSave().
     ///
     /// This default implementation forwards the job to `update` or `insert`.
-    @inlinable
     public mutating func performSave(_ db: Database) throws {
         // Call self.insert and self.update so that we support classes that
         // override those methods.
@@ -443,7 +438,6 @@ extension MutablePersistableRecord {
     /// that adopt MutablePersistableRecord can invoke performDelete() in
     /// their implementation of delete(). They should not provide their own
     /// implementation of performDelete().
-    @inlinable
     public func performDelete(_ db: Database) throws -> Bool {
         guard let statement = try DAO(db, self).deleteStatement() else {
             // Nil primary key
@@ -460,7 +454,6 @@ extension MutablePersistableRecord {
     /// that adopt MutablePersistableRecord can invoke performExists() in
     /// their implementation of exists(). They should not provide their own
     /// implementation of performExists().
-    @inlinable
     public func performExists(_ db: Database) throws -> Bool {
         guard let statement = try DAO(db, self).existsStatement() else {
             // Nil primary key
@@ -505,180 +498,6 @@ extension MutablePersistableRecord where Self: AnyObject {
     }
 }
 
-extension MutablePersistableRecord {
-    
-    // MARK: Batch Delete
-    
-    /// Deletes all records; returns the number of deleted rows.
-    ///
-    /// - parameter db: A database connection.
-    /// - returns: The number of deleted rows
-    /// - throws: A DatabaseError is thrown whenever an SQLite error occurs.
-    @discardableResult
-    public static func deleteAll(_ db: Database) throws -> Int {
-        try all().deleteAll(db)
-    }
-    
-    // MARK: Batch Update
-    
-    /// Updates all records; returns the number of updated records.
-    ///
-    /// For example:
-    ///
-    ///     try dbQueue.write { db in
-    ///         // UPDATE player SET score = 0
-    ///         try Player.updateAll(db, [Column("score").set(to: 0)])
-    ///     }
-    ///
-    /// - parameter db: A database connection.
-    /// - parameter conflictResolution: A policy for conflict resolution,
-    ///   defaulting to the record's persistenceConflictPolicy.
-    /// - parameter assignments: An array of column assignments.
-    /// - returns: The number of updated rows.
-    /// - throws: A DatabaseError is thrown whenever an SQLite error occurs.
-    @discardableResult
-    public static func updateAll(
-        _ db: Database,
-        onConflict conflictResolution: Database.ConflictResolution? = nil,
-        _ assignments: [ColumnAssignment])
-        throws -> Int
-    {
-        try all().updateAll(db, onConflict: conflictResolution, assignments)
-    }
-    
-    /// Updates all records; returns the number of updated records.
-    ///
-    /// For example:
-    ///
-    ///     try dbQueue.write { db in
-    ///         // UPDATE player SET score = 0
-    ///         try Player.updateAll(db, Column("score").set(to: 0))
-    ///     }
-    ///
-    /// - parameter db: A database connection.
-    /// - parameter conflictResolution: A policy for conflict resolution,
-    ///   defaulting to the record's persistenceConflictPolicy.
-    /// - parameter assignment: A column assignment.
-    /// - parameter otherAssignments: Eventual other column assignments.
-    /// - returns: The number of updated rows.
-    /// - throws: A DatabaseError is thrown whenever an SQLite error occurs.
-    @discardableResult
-    public static func updateAll(
-        _ db: Database,
-        onConflict conflictResolution: Database.ConflictResolution? = nil,
-        _ assignment: ColumnAssignment,
-        _ otherAssignments: ColumnAssignment...)
-        throws -> Int
-    {
-        try updateAll(db, onConflict: conflictResolution, [assignment] + otherAssignments)
-    }
-}
-
-extension MutablePersistableRecord {
-    
-    // MARK: - Deleting by Single-Column Primary Key
-    
-    /// Delete records identified by their primary keys; returns the number of
-    /// deleted rows.
-    ///
-    ///     // DELETE FROM player WHERE id IN (1, 2, 3)
-    ///     try Player.deleteAll(db, keys: [1, 2, 3])
-    ///
-    ///     // DELETE FROM country WHERE code IN ('FR', 'US', 'DE')
-    ///     try Country.deleteAll(db, keys: ["FR", "US", "DE"])
-    ///
-    /// When the table has no explicit primary key, GRDB uses the hidden
-    /// "rowid" column:
-    ///
-    ///     // DELETE FROM document WHERE rowid IN (1, 2, 3)
-    ///     try Document.deleteAll(db, keys: [1, 2, 3])
-    ///
-    /// - parameters:
-    ///     - db: A database connection.
-    ///     - keys: A sequence of primary keys.
-    /// - returns: The number of deleted rows
-    @discardableResult
-    public static func deleteAll<Sequence>(_ db: Database, keys: Sequence)
-        throws -> Int
-        where Sequence: Swift.Sequence, Sequence.Element: DatabaseValueConvertible
-    {
-        let keys = Array(keys)
-        if keys.isEmpty {
-            // Avoid hitting the database
-            return 0
-        }
-        return try filter(keys: keys).deleteAll(db)
-    }
-    
-    /// Delete a record, identified by its primary key; returns whether a
-    /// database row was deleted.
-    ///
-    ///     // DELETE FROM player WHERE id = 123
-    ///     try Player.deleteOne(db, key: 123)
-    ///
-    ///     // DELETE FROM country WHERE code = 'FR'
-    ///     try Country.deleteOne(db, key: "FR")
-    ///
-    /// When the table has no explicit primary key, GRDB uses the hidden
-    /// "rowid" column:
-    ///
-    ///     // DELETE FROM document WHERE rowid = 1
-    ///     try Document.deleteOne(db, key: 1)
-    ///
-    /// - parameters:
-    ///     - db: A database connection.
-    ///     - key: A primary key value.
-    /// - returns: Whether a database row was deleted.
-    @discardableResult
-    public static func deleteOne<PrimaryKeyType>(_ db: Database, key: PrimaryKeyType?)
-        throws -> Bool
-        where PrimaryKeyType: DatabaseValueConvertible
-    {
-        guard let key = key else {
-            // Avoid hitting the database
-            return false
-        }
-        return try deleteAll(db, keys: [key]) > 0
-    }
-}
-
-extension MutablePersistableRecord {
-    
-    // MARK: - Deleting by Key
-    
-    /// Delete records identified by the provided unique keys (primary key or
-    /// any key with a unique index on it); returns the number of deleted rows.
-    ///
-    ///     try Player.deleteAll(db, keys: [["email": "a@example.com"], ["email": "b@example.com"]])
-    ///
-    /// - parameters:
-    ///     - db: A database connection.
-    ///     - keys: An array of key dictionaries.
-    /// - returns: The number of deleted rows
-    @discardableResult
-    public static func deleteAll(_ db: Database, keys: [[String: DatabaseValueConvertible?]]) throws -> Int {
-        if keys.isEmpty {
-            // Avoid hitting the database
-            return 0
-        }
-        return try filter(keys: keys).deleteAll(db)
-    }
-    
-    /// Delete a record, identified by a unique key (the primary key or any key
-    /// with a unique index on it); returns whether a database row was deleted.
-    ///
-    ///     Player.deleteOne(db, key: ["name": Arthur"])
-    ///
-    /// - parameters:
-    ///     - db: A database connection.
-    ///     - key: A dictionary of values.
-    /// - returns: Whether a database row was deleted.
-    @discardableResult
-    public static func deleteOne(_ db: Database, key: [String: DatabaseValueConvertible?]) throws -> Bool {
-        try deleteAll(db, keys: [key]) > 0
-    }
-}
-
 // MARK: - PersistableRecord
 
 /// Types that adopt `PersistableRecord` can be inserted, updated, and deleted.
@@ -687,7 +506,7 @@ extension MutablePersistableRecord {
 /// are not mutating methods.
 public protocol PersistableRecord: MutablePersistableRecord {
     
-    /// Notifies the record that it was succesfully inserted.
+    /// Notifies the record that it was successfully inserted.
     ///
     /// Do not call this method directly: it is called for you, in a protected
     /// dispatch queue, with the inserted RowID and the eventual
@@ -745,7 +564,7 @@ public protocol PersistableRecord: MutablePersistableRecord {
 
 extension PersistableRecord {
     
-    /// Notifies the record that it was succesfully inserted.
+    /// Notifies the record that it was successfully inserted.
     ///
     /// The default implementation does nothing.
     public func didInsert(with rowID: Int64, for column: String?) {
@@ -777,7 +596,6 @@ extension PersistableRecord {
     /// that adopt PersistableRecord can invoke performInsert() in their
     /// implementation of insert(). They should not provide their own
     /// implementation of performInsert().
-    @inlinable
     public func performInsert(_ db: Database) throws {
         let conflictResolutionForInsert = type(of: self).persistenceConflictPolicy.conflictResolutionForInsert
         let dao = try DAO(db, self)
@@ -797,7 +615,6 @@ extension PersistableRecord {
     /// implementation of performSave().
     ///
     /// This default implementation forwards the job to `update` or `insert`.
-    @inlinable
     public func performSave(_ db: Database) throws {
         // Call self.insert and self.update so that we support classes that
         // override those methods.
@@ -826,7 +643,6 @@ extension PersistenceContainer {
 }
 
 /// DAO takes care of PersistableRecord CRUD
-@usableFromInline
 final class DAO<Record: MutablePersistableRecord> {
     /// The database
     let db: Database
@@ -840,9 +656,8 @@ final class DAO<Record: MutablePersistableRecord> {
     let databaseTableName: String
     
     /// The table primary key info
-    @usableFromInline let primaryKey: PrimaryKeyInfo
+    let primaryKey: PrimaryKeyInfo
     
-    @usableFromInline
     init(_ db: Database, _ record: Record) throws {
         self.db = db
         databaseTableName = type(of: record).databaseTableName
@@ -851,20 +666,18 @@ final class DAO<Record: MutablePersistableRecord> {
         GRDBPrecondition(!persistenceContainer.isEmpty, "\(type(of: record)): invalid empty persistence container")
     }
     
-    @usableFromInline
-    func insertStatement(onConflict: Database.ConflictResolution) throws -> UpdateStatement {
+    func insertStatement(onConflict: Database.ConflictResolution) throws -> Statement {
         let query = InsertQuery(
             onConflict: onConflict,
             tableName: databaseTableName,
             insertedColumns: persistenceContainer.columns)
-        let statement = try db.internalCachedUpdateStatement(sql: query.sql)
+        let statement = try db.internalCachedStatement(sql: query.sql)
         statement.setUncheckedArguments(StatementArguments(persistenceContainer.values))
         return statement
     }
     
     /// Returns nil if and only if primary key is nil
-    @usableFromInline
-    func updateStatement(columns: Set<String>, onConflict: Database.ConflictResolution) throws -> UpdateStatement? {
+    func updateStatement(columns: Set<String>, onConflict: Database.ConflictResolution) throws -> Statement? {
         // Fail early if primary key does not resolve to a database row.
         let primaryKeyColumns = primaryKey.columns
         let primaryKeyValues = primaryKeyColumns.map {
@@ -907,14 +720,13 @@ final class DAO<Record: MutablePersistableRecord> {
             tableName: databaseTableName,
             updatedColumns: updatedColumns,
             conditionColumns: primaryKeyColumns)
-        let statement = try db.internalCachedUpdateStatement(sql: query.sql)
+        let statement = try db.internalCachedStatement(sql: query.sql)
         statement.setUncheckedArguments(StatementArguments(updatedValues + primaryKeyValues))
         return statement
     }
     
     /// Returns nil if and only if primary key is nil
-    @usableFromInline
-    func deleteStatement() throws -> UpdateStatement? {
+    func deleteStatement() throws -> Statement? {
         // Fail early if primary key does not resolve to a database row.
         let primaryKeyColumns = primaryKey.columns
         let primaryKeyValues = primaryKeyColumns.map {
@@ -927,14 +739,13 @@ final class DAO<Record: MutablePersistableRecord> {
         let query = DeleteQuery(
             tableName: databaseTableName,
             conditionColumns: primaryKeyColumns)
-        let statement = try db.internalCachedUpdateStatement(sql: query.sql)
+        let statement = try db.internalCachedStatement(sql: query.sql)
         statement.setUncheckedArguments(StatementArguments(primaryKeyValues))
         return statement
     }
     
     /// Returns nil if and only if primary key is nil
-    @usableFromInline
-    func existsStatement() throws -> SelectStatement? {
+    func existsStatement() throws -> Statement? {
         // Fail early if primary key does not resolve to a database row.
         let primaryKeyColumns = primaryKey.columns
         let primaryKeyValues = primaryKeyColumns.map {
@@ -947,13 +758,12 @@ final class DAO<Record: MutablePersistableRecord> {
         let query = ExistsQuery(
             tableName: databaseTableName,
             conditionColumns: primaryKeyColumns)
-        let statement = try db.internalCachedSelectStatement(sql: query.sql)
+        let statement = try db.internalCachedStatement(sql: query.sql)
         statement.setUncheckedArguments(StatementArguments(primaryKeyValues))
         return statement
     }
     
     /// Throws a PersistenceError.recordNotFound error
-    @usableFromInline
     func makeRecordNotFoundError() -> Error {
         let key = Dictionary(uniqueKeysWithValues: primaryKey.columns.map {
             ($0, persistenceContainer[caseInsensitive: $0]?.databaseValue ?? .null)
@@ -1022,16 +832,16 @@ extension UpdateQuery {
         switch onConflict {
         case .abort:
             sql = """
-            UPDATE \(tableName.quotedDatabaseIdentifier) \
-            SET \(updateSQL) \
-            WHERE \(whereSQL)
-            """
+                UPDATE \(tableName.quotedDatabaseIdentifier) \
+                SET \(updateSQL) \
+                WHERE \(whereSQL)
+                """
         default:
             sql = """
-            UPDATE OR \(onConflict.rawValue) \(tableName.quotedDatabaseIdentifier) \
-            SET \(updateSQL) \
-            WHERE \(whereSQL)
-            """
+                UPDATE OR \(onConflict.rawValue) \(tableName.quotedDatabaseIdentifier) \
+                SET \(updateSQL) \
+                WHERE \(whereSQL)
+                """
         }
         Self.sqlCache[self] = sql
         return sql

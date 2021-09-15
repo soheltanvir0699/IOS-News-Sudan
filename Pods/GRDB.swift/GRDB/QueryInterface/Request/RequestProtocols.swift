@@ -72,20 +72,13 @@ extension SelectionRequest {
     ///         .select(sql: "id")
     ///         .select(sql: "email")
     public func select(sql: String, arguments: StatementArguments = StatementArguments()) -> Self {
-        select(literal: SQLLiteral(sql: sql, arguments: arguments))
+        select(SQL(sql: sql, arguments: arguments))
     }
     
     /// Creates a request which selects an SQL *literal*.
     ///
-    ///     // SELECT id, email, score + 1000 FROM player
-    ///     let bonus = 1000
-    ///     var request = Player.all()
-    ///     request = request.select(literal: SQLLiteral(sql: """
-    ///         id, email, score + ?
-    ///         """, arguments: [bonus]))
-    ///
-    /// With Swift 5, you can safely embed raw values in your SQL queries,
-    /// without any risk of syntax errors or SQL injection:
+    /// Literals allow you to safely embed raw values in your SQL, without any
+    /// risk of syntax errors or SQL injection:
     ///
     ///     // SELECT id, email, score + 1000 FROM player
     ///     let bonus = 1000
@@ -99,10 +92,10 @@ extension SelectionRequest {
     ///     // SELECT email FROM player
     ///     request
     ///         .select(...)
-    ///         .select(literal: SQLLiteral(sql: "email"))
-    public func select(literal sqlLiteral: SQLLiteral) -> Self {
+    ///         .select(literal: "email")
+    public func select(literal sqlLiteral: SQL) -> Self {
         // NOT TESTED
-        select(sqlLiteral.sqlSelectable)
+        select(sqlLiteral)
     }
     
     /// Creates a request which appends *selection*.
@@ -145,10 +138,24 @@ extension FilteredRequest {
     /// Creates a request with the provided *predicate* added to the
     /// eventual set of already applied predicates.
     ///
+    ///     // SELECT * FROM player WHERE 0
+    ///     var request = Player.all()
+    ///     request = request.filter(false)
+    @available(*, deprecated, message: "Did you mean filter(id:) or filter(key:)? If not, prefer filter(value.databaseValue) instead. See also none().") // swiftlint:disable:this line_length
+    public func filter(_ predicate: SQLExpressible) -> Self {
+        filter { _ in predicate }
+    }
+    
+    // Accept SQLSpecificExpressible instead of SQLExpressible, so that we
+    // prevent the `Player.filter(42)` misuse.
+    // See https://github.com/groue/GRDB.swift/pull/864
+    /// Creates a request with the provided *predicate* added to the
+    /// eventual set of already applied predicates.
+    ///
     ///     // SELECT * FROM player WHERE email = 'arthur@example.com'
     ///     var request = Player.all()
     ///     request = request.filter(Column("email") == "arthur@example.com")
-    public func filter(_ predicate: SQLExpressible) -> Self {
+    public func filter(_ predicate: SQLSpecificExpressible) -> Self {
         filter { _ in predicate }
     }
     
@@ -159,26 +166,22 @@ extension FilteredRequest {
     ///     var request = Player.all()
     ///     request = request.filter(sql: "email = ?", arguments: ["arthur@example.com"])
     public func filter(sql: String, arguments: StatementArguments = StatementArguments()) -> Self {
-        filter(literal: SQLLiteral(sql: sql, arguments: arguments))
+        filter(SQL(sql: sql, arguments: arguments))
     }
     
     /// Creates a request with the provided *predicate* added to the
     /// eventual set of already applied predicates.
     ///
-    ///     // SELECT * FROM player WHERE email = 'arthur@example.com'
-    ///     var request = Player.all()
-    ///     request = request.filter(literal: SQLLiteral(sql: """
-    ///         email = ?
-    ///         """, arguments: ["arthur@example.com"])
+    /// Literals allow you to safely embed raw values in your SQL, without any
+    /// risk of syntax errors or SQL injection:
     ///
-    /// With Swift 5, you can safely embed raw values in your SQL queries,
-    /// without any risk of syntax errors or SQL injection:
-    ///
+    ///     // SELECT * FROM player WHERE name = 'O''Brien'
+    ///     let name = "O'Brien"
     ///     var request = Player.all()
-    ///     request = request.filter(literal: "name = \("O'Brien")")
-    public func filter(literal sqlLiteral: SQLLiteral) -> Self {
+    ///     request = request.filter(literal: "email = \(email)")
+    public func filter(literal sqlLiteral: SQL) -> Self {
         // NOT TESTED
-        filter(sqlLiteral.sqlExpression)
+        filter(sqlLiteral)
     }
     
     /// Creates a request that matches nothing.
@@ -187,7 +190,7 @@ extension FilteredRequest {
     ///     var request = Player.all()
     ///     request = request.none()
     public func none() -> Self {
-        filter(false)
+        filter { _ in false }
     }
 }
 
@@ -220,7 +223,12 @@ public protocol TableRequest {
 
 extension TableRequest where Self: FilteredRequest {
     
-    /// Creates a request with the provided primary key *predicate*.
+    /// Creates a request filtered by primary key.
+    ///
+    ///     // SELECT * FROM player WHERE ... id = 1
+    ///     let request = try Player...filter(key: 1)
+    ///
+    /// - parameter key: A primary key
     public func filter<PrimaryKeyType: DatabaseValueConvertible>(key: PrimaryKeyType?) -> Self {
         guard let key = key else {
             return none()
@@ -228,10 +236,15 @@ extension TableRequest where Self: FilteredRequest {
         return filter(keys: [key])
     }
     
-    /// Creates a request with the provided primary key *predicate*.
+    /// Creates a request filtered by primary key.
+    ///
+    ///     // SELECT * FROM player WHERE ... id IN (1, 2, 3)
+    ///     let request = try Player...filter(keys: [1, 2, 3])
+    ///
+    /// - parameter keys: A collection of primary keys
     public func filter<Sequence: Swift.Sequence>(keys: Sequence)
-        -> Self
-        where Sequence.Element: DatabaseValueConvertible
+    -> Self
+    where Sequence.Element: DatabaseValueConvertible
     {
         let keys = Array(keys)
         if keys.isEmpty {
@@ -248,10 +261,15 @@ extension TableRequest where Self: FilteredRequest {
         }
     }
     
-    /// Creates a request with the provided primary key *predicate*.
+    /// Creates a request filtered by unique key.
+    ///
+    ///     // SELECT * FROM player WHERE ... email = 'arthur@example.com'
+    ///     let request = try Player...filter(key: ["email": "arthur@example.com"])
     ///
     /// When executed, this request raises a fatal error if there is no unique
     /// index on the key columns.
+    ///
+    /// - parameter key: A unique key
     public func filter(key: [String: DatabaseValueConvertible?]?) -> Self {
         guard let key = key else {
             return none()
@@ -259,10 +277,15 @@ extension TableRequest where Self: FilteredRequest {
         return filter(keys: [key])
     }
     
-    /// Creates a request with the provided primary key *predicate*.
+    /// Creates a request filtered by unique key.
+    ///
+    ///     // SELECT * FROM player WHERE ... email = 'arthur@example.com' OR ...
+    ///     let request = try Player...filter(keys: [["email": "arthur@example.com"], ...])
     ///
     /// When executed, this request raises a fatal error if there is no unique
     /// index on the key columns.
+    ///
+    /// - parameter keys: A collection of unique keys
     public func filter(keys: [[String: DatabaseValueConvertible?]]) -> Self {
         if keys.isEmpty {
             return none()
@@ -298,12 +321,75 @@ extension TableRequest where Self: FilteredRequest {
     }
 }
 
+@available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6, *)
+extension TableRequest
+where Self: FilteredRequest,
+      Self: JoinableRequest, // for RowDecoder
+      RowDecoder: Identifiable,
+      RowDecoder.ID: DatabaseValueConvertible
+{
+    /// Creates a request filtered by primary key.
+    ///
+    ///     // SELECT * FROM player WHERE ... id = 1
+    ///     let request = try Player...filter(id: 1)
+    ///
+    /// - parameter id: A primary key
+    public func filter(id: RowDecoder.ID) -> Self {
+        filter(key: id)
+    }
+    
+    /// Creates a request filtered by primary key.
+    ///
+    ///     // SELECT * FROM player WHERE ... id IN (1, 2, 3)
+    ///     let request = try Player...filter(ids: [1, 2, 3])
+    ///
+    /// - parameter ids: A collection of primary keys
+    public func filter<Collection: Swift.Collection>(ids: Collection)
+    -> Self
+    where Collection.Element == RowDecoder.ID
+    {
+        filter(keys: ids)
+    }
+}
+
+@available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6, *)
+extension TableRequest
+where Self: FilteredRequest,
+      Self: JoinableRequest, // for RowDecoder
+      RowDecoder: Identifiable,
+      RowDecoder.ID: _OptionalProtocol,
+      RowDecoder.ID.Wrapped: DatabaseValueConvertible
+{
+    /// Creates a request filtered by primary key.
+    ///
+    ///     // SELECT * FROM player WHERE ... id = 1
+    ///     let request = try Player...filter(id: 1)
+    ///
+    /// - parameter id: A primary key
+    public func filter(id: RowDecoder.ID.Wrapped) -> Self {
+        filter(key: id)
+    }
+    
+    /// Creates a request filtered by primary key.
+    ///
+    ///     // SELECT * FROM player WHERE ... id IN (1, 2, 3)
+    ///     let request = try Player...filter(ids: [1, 2, 3])
+    ///
+    /// - parameter ids: A collection of primary keys
+    public func filter<Collection: Swift.Collection>(ids: Collection)
+    -> Self
+    where Collection.Element == RowDecoder.ID.Wrapped
+    {
+        filter(keys: ids)
+    }
+}
+
 extension TableRequest where Self: OrderedRequest {
     /// Creates a request ordered by primary key.
     public func orderByPrimaryKey() -> Self {
         let tableName = self.databaseTableName
         return order { db in
-            try db.primaryKey(tableName).columns.map { Column($0) }
+            try db.primaryKey(tableName).columns.map(SQLExpression.column)
         }
     }
 }
@@ -319,7 +405,11 @@ extension TableRequest where Self: AggregatingRequest {
                 return [Column(rowIDColumn)]
             } else if primaryKey.tableHasRowID {
                 // Prefer the rowid
+                #if compiler(>=5.5)
+                return [.rowID]
+                #else
                 return [Column.rowID]
+                #endif
             } else {
                 // WITHOUT ROWID table: group by primary key columns
                 return primaryKey.columns.map { Column($0) }
@@ -353,13 +443,13 @@ extension AggregatingRequest {
     
     /// Creates a request with a new grouping.
     public func group(sql: String, arguments: StatementArguments = StatementArguments()) -> Self {
-        group(literal: SQLLiteral(sql: sql, arguments: arguments))
+        group(SQL(sql: sql, arguments: arguments))
     }
     
     /// Creates a request with a new grouping.
-    public func group(literal sqlLiteral: SQLLiteral) -> Self {
+    public func group(literal sqlLiteral: SQL) -> Self {
         // NOT TESTED
-        group(sqlLiteral.sqlExpression)
+        group(sqlLiteral)
     }
     
     /// Creates a request with the provided *predicate* added to the
@@ -371,14 +461,14 @@ extension AggregatingRequest {
     /// Creates a request with the provided *sql* added to the
     /// eventual set of already applied predicates.
     public func having(sql: String, arguments: StatementArguments = StatementArguments()) -> Self {
-        having(literal: SQLLiteral(sql: sql, arguments: arguments))
+        having(SQL(sql: sql, arguments: arguments))
     }
     
-    /// Creates a request with the provided *sql* added to the
+    /// Creates a request with the provided SQL *literal* added to the
     /// eventual set of already applied predicates.
-    public func having(literal sqlLiteral: SQLLiteral) -> Self {
+    public func having(literal sqlLiteral: SQL) -> Self {
         // NOT TESTED
-        having(sqlLiteral.sqlExpression)
+        having(sqlLiteral)
     }
 }
 
@@ -470,24 +560,24 @@ extension OrderedRequest {
     ///         .order(sql: "email")
     ///         .order(sql: "name")
     public func order(sql: String, arguments: StatementArguments = StatementArguments()) -> Self {
-        order(literal: SQLLiteral(sql: sql, arguments: arguments))
+        order(SQL(sql: sql, arguments: arguments))
     }
     
     /// Creates a request sorted according to an SQL *literal*.
     ///
     ///     // SELECT * FROM player ORDER BY name
     ///     var request = Player.all()
-    ///     request = request.order(sql: "name")
+    ///     request = request.order(literal: "name")
     ///
     /// Any previous ordering is replaced:
     ///
     ///     // SELECT * FROM player ORDER BY name
     ///     request
-    ///         .order(sql: "email")
-    ///         .order(sql: "name")
-    public func order(literal sqlLiteral: SQLLiteral) -> Self {
+    ///         .order(literal: "email")
+    ///         .order(literal: "name")
+    public func order(literal sqlLiteral: SQL) -> Self {
         // NOT TESTED
-        order(sqlLiteral.sqlOrderingTerm)
+        order(sqlLiteral)
     }
 }
 
@@ -535,7 +625,7 @@ public protocol JoinableRequest: _JoinableRequest {
     ///         // BelongsToAssociation<Book, Author>
     ///         static let author = belongsTo(Author.self)
     ///     }
-    associatedtype RowDecoder: TableRecord
+    associatedtype RowDecoder
 }
 
 extension JoinableRequest {
@@ -576,4 +666,128 @@ extension JoinableRequest {
 // MARK: - DerivableRequest
 
 /// The base protocol for all requests that can be refined.
-public protocol DerivableRequest: FilteredRequest, JoinableRequest, OrderedRequest, SelectionRequest, TableRequest { }
+public protocol DerivableRequest: AggregatingRequest, FilteredRequest,
+                                  JoinableRequest, OrderedRequest,
+                                  SelectionRequest, TableRequest
+{
+    /// Creates a request which returns distinct rows.
+    ///
+    ///     // SELECT DISTINCT * FROM player
+    ///     var request = Player.all()
+    ///     request = request.distinct()
+    ///
+    ///     // SELECT DISTINCT name FROM player
+    ///     var request = Player.select(Column("name"))
+    ///     request = request.distinct()
+    func distinct() -> Self
+    
+    /// Creates a request which fetches *limit* rows, starting at *offset*.
+    ///
+    ///     // SELECT * FROM player LIMIT 10 OFFSET 20
+    ///     var request = Player.all()
+    ///     request = request.limit(10, offset: 20)
+    ///
+    /// Any previous limit is replaced.
+    ///
+    /// - warning: Avoid to call this method on associations: it is unlikely it
+    ///   does what you expect it to do. Only call it on requests.
+    ///
+    /// :nodoc:
+    func limit(_ limit: Int, offset: Int?) -> Self
+    
+    /// Returns a request which embeds the common table expression.
+    ///
+    /// If a common table expression with the same table name had already been
+    /// embedded, it is replaced by the new one.
+    ///
+    /// For example, you can build a request that fetches all chats with their
+    /// latest message:
+    ///
+    ///     let latestMessageRequest = Message
+    ///         .annotated(with: max(Column("date")))
+    ///         .group(Column("chatID"))
+    ///
+    ///     let latestMessageCTE = CommonTableExpression(
+    ///         named: "latestMessage",
+    ///         request: latestMessageRequest)
+    ///
+    ///     let latestMessage = Chat.association(
+    ///         to: latestMessageCTE,
+    ///         on: { chat, latestMessage in
+    ///             chat[Column("id")] == latestMessage[Column("chatID")]
+    ///         })
+    ///
+    ///     // WITH latestMessage AS
+    ///     //   (SELECT *, MAX(date) FROM message GROUP BY chatID)
+    ///     // SELECT chat.*, latestMessage.*
+    ///     // FROM chat
+    ///     // LEFT JOIN latestMessage ON chat.id = latestMessage.chatID
+    ///     let request = Chat.all()
+    ///         .with(latestMessageCTE)
+    ///         .including(optional: latestMessage)
+    func with<RowDecoder>(_ cte: CommonTableExpression<RowDecoder>) -> Self
+}
+
+extension DerivableRequest {
+    /// Creates a request which fetches *limit* rows.
+    ///
+    ///     // SELECT * FROM player LIMIT 1
+    ///     var request = Player.all()
+    ///     request = request.limit(1)
+    ///
+    /// Any previous limit is replaced.
+    ///
+    /// - warning: Avoid to call this method on associations: it is unlikely it
+    ///   does what you expect it to do. Only call it on requests.
+    ///
+    /// :nodoc:
+    public func limit(_ limit: Int) -> Self {
+        self.limit(limit, offset: nil)
+    }
+    
+    private func annotated(with aggregate: AssociationAggregate<RowDecoder>) -> Self {
+        var request = self
+        let expression = aggregate.prepare(&request)
+        if let key = aggregate.key {
+            return request.annotated(with: expression.forKey(key))
+        } else {
+            return request.annotated(with: expression)
+        }
+    }
+    
+    /// Creates a request which appends *aggregates* to the current selection.
+    ///
+    ///     // SELECT player.*, COUNT(DISTINCT book.id) AS bookCount
+    ///     // FROM player LEFT JOIN book ...
+    ///     var request = Player.all()
+    ///     request = request.annotated(with: Player.books.count)
+    public func annotated(with aggregates: AssociationAggregate<RowDecoder>...) -> Self {
+        annotated(with: aggregates)
+    }
+    
+    /// Creates a request which appends *aggregates* to the current selection.
+    ///
+    ///     // SELECT player.*, COUNT(DISTINCT book.id) AS bookCount
+    ///     // FROM player LEFT JOIN book ...
+    ///     var request = Player.all()
+    ///     request = request.annotated(with: [Player.books.count])
+    public func annotated(with aggregates: [AssociationAggregate<RowDecoder>]) -> Self {
+        aggregates.reduce(self) { request, aggregate in
+            request.annotated(with: aggregate)
+        }
+    }
+    
+    /// Creates a request which appends the provided aggregate *predicate* to
+    /// the eventual set of already applied predicates.
+    ///
+    ///     // SELECT player.*
+    ///     // FROM player LEFT JOIN book ...
+    ///     // HAVING COUNT(DISTINCT book.id) = 0
+    ///     var request = Player.all()
+    ///     request = request.having(Player.books.isEmpty)
+    public func having(_ predicate: AssociationAggregate<RowDecoder>) -> Self {
+        var request = self
+        let expression = predicate.prepare(&request)
+        return request.having(expression)
+    }
+}

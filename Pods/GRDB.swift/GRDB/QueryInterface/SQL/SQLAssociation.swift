@@ -87,7 +87,9 @@ public struct _SQLAssociation {
     
     /// Changes the destination key
     func forDestinationKey(_ key: SQLAssociationKey) -> Self {
-        with(\.destination.key, key)
+        with {
+            $0.destination.key = key
+        }
     }
     
     /// Returns a new association
@@ -123,19 +125,16 @@ public struct _SQLAssociation {
                 // children are useless:
                 let relation = step.relation
                     .selectOnly([])
-                    .filteringChildren({
-                         switch $0.kind {
-                         case .allPrefetched, .allNotPrefetched: return false
-                         case .oneRequired, .oneOptional: return true
-                         }
-                     })
+                    .removingChildrenForPrefetchedAssociations()
                 
                 // Don't interfere with user-defined keys that could be added later
-                let key = step.key.map(\.baseName) { "grdb_\($0)" }
+                let key = step.key.with {
+                    $0.baseName = "grdb_\($0.baseName)"
+                }
                 
                 return SQLAssociationStep(
                     key: key,
-                    condition: nextStep.condition.reversed,
+                    condition: nextStep.condition.reversed(to: step.relation.source.tableName),
                     relation: relation,
                     cardinality: .toOne)
             })
@@ -153,21 +152,21 @@ struct SQLAssociationStep: Refinable {
     var relation: SQLRelation
     var cardinality: SQLAssociationCardinality
     
+    var keyName: String { key.name(singular: cardinality.isSingular) }
+}
+
+enum SQLAssociationCardinality {
+    case toOne
+    case toMany
+    
     var isSingular: Bool {
-        switch cardinality {
+        switch self {
         case .toOne:
             return true
         case .toMany:
             return false
         }
     }
-    
-    var keyName: String { key.name(singular: isSingular) }
-}
-
-enum SQLAssociationCardinality {
-    case toOne
-    case toMany
 }
 
 // MARK: - SQLAssociationKey

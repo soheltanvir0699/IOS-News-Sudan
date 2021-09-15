@@ -17,10 +17,9 @@ final class SerializedDatabase {
     init(
         path: String,
         configuration: Configuration = Configuration(),
-        schemaCache: DatabaseSchemaCache,
         defaultLabel: String,
         purpose: String? = nil)
-        throws
+    throws
     {
         // According to https://www.sqlite.org/threadsafe.html
         //
@@ -47,14 +46,19 @@ final class SerializedDatabase {
         self.db = try Database(
             path: path,
             description: identifier,
-            configuration: config,
-            schemaCache: schemaCache)
+            configuration: config)
         self.queue = configuration.makeDispatchQueue(label: identifier)
         SchedulingWatchdog.allowDatabase(db, onQueue: queue)
         try queue.sync {
             do {
                 try db.setUp()
             } catch {
+                // Recent versions of the Swift compiler will call the
+                // deinitializer. Older ones won't.
+                // See https://bugs.swift.org/browse/SR-13746 for details.
+                //
+                // So let's close the database now. The deinitializer
+                // will only close the database if needed.
                 db.close()
                 throw error
             }

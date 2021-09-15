@@ -9,12 +9,12 @@ public struct Configuration {
     /// If true, foreign key constraints are checked.
     ///
     /// Default: true
-    public var foreignKeysEnabled: Bool = true
+    public var foreignKeysEnabled = true
     
     /// If true, database modifications are disallowed.
     ///
     /// Default: false
-    public var readonly: Bool = false
+    public var readonly = false
     
     /// The configuration label.
     ///
@@ -91,7 +91,7 @@ public struct Configuration {
     /// When true, the `Database.suspendNotification` and
     /// `Database.resumeNotification` suspend and resume the database. Database
     /// suspension helps avoiding the [`0xdead10cc`
-    /// exception](https://developer.apple.com/library/archive/technotes/tn2151/_index.html).
+    /// exception](https://developer.apple.com/documentation/xcode/understanding-the-exception-types-in-a-crash-report).
     ///
     /// During suspension, all database accesses but reads in WAL mode may throw
     /// a DatabaseError of code `SQLITE_INTERRUPT`, or `SQLITE_ABORT`. You can
@@ -108,6 +108,9 @@ public struct Configuration {
     /// The function argument is run when an SQLite connection is opened,
     /// before the connection is made available for database access methods.
     ///
+    /// This method can be called several times. The preparation functions are
+    /// run in the same order.
+    ///
     /// For example:
     ///
     ///     var config = Configuration()
@@ -115,8 +118,21 @@ public struct Configuration {
     ///         try db.execute(sql: "PRAGMA kdf_iter = 10000")
     ///     }
     ///
-    /// This method can be called several times. The setup functions are run in
-    /// the same order.
+    /// When you use a `DatabasePool`, preparation functions are called for
+    /// the writer connection and all reader connections. You can distinguish
+    /// them by querying `db.configuration.readonly`:
+    ///
+    ///     var config = Configuration()
+    ///     config.prepareDatabase { db in
+    ///         if db.configuration.readonly {
+    ///             // reader connection
+    ///         } else {
+    ///             // writer connection
+    ///         }
+    ///     }
+    ///
+    /// On newly created databases, `DatabasePool` the WAL mode is activated
+    /// after the preparation functions have run.
     public mutating func prepareDatabase(_ setup: @escaping (Database) throws -> Void) {
         setups.append(setup)
     }
@@ -159,11 +175,11 @@ public struct Configuration {
     /// never allow leaving a transaction opened at the end of a read access.
     ///
     /// Default: false
-    public var allowsUnsafeTransactions: Bool = false
+    public var allowsUnsafeTransactions = false
     
     // MARK: - Concurrency
     
-    /// The behavior in case of SQLITE_BUSY error. See https://www.sqlite.org/rescode.html#busy
+    /// The behavior in case of SQLITE_BUSY error. See <https://www.sqlite.org/rescode.html#busy>
     ///
     /// Default: immediateError
     public var busyMode: Database.BusyMode = .immediateError

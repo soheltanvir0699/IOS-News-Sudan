@@ -44,7 +44,7 @@
 ///    SQLite guarantees that no book refers to a missing author. The
 ///    `onDelete: .cascade` option has SQLite automatically delete all of an
 ///    author's books when that author is deleted.
-///    See https://sqlite.org/foreignkeys.html#fk_actions for more information.
+///    See <https://sqlite.org/foreignkeys.html#fk_actions> for more information.
 ///
 /// The example above uses auto-incremented primary keys. But generally
 /// speaking, all primary keys are supported.
@@ -58,7 +58,7 @@
 ///     }
 ///
 /// See ForeignKey for more information.
-public struct BelongsToAssociation<Origin: TableRecord, Destination: TableRecord>: AssociationToOne {
+public struct BelongsToAssociation<Origin, Destination>: AssociationToOne {
     /// :nodoc:
     public typealias OriginRowDecoder = Origin
     
@@ -68,35 +68,29 @@ public struct BelongsToAssociation<Origin: TableRecord, Destination: TableRecord
     /// :nodoc:
     public var _sqlAssociation: _SQLAssociation
     
-    /// :nodoc:
-    public init(sqlAssociation: _SQLAssociation) {
-        self._sqlAssociation = sqlAssociation
-    }
-    
     init(
+        to destinationRelation: SQLRelation,
         key: String?,
         using foreignKey: ForeignKey?)
     {
-        let foreignKeyRequest = SQLForeignKeyRequest(
-            originTable: Origin.databaseTableName,
-            destinationTable: Destination.databaseTableName,
-            foreignKey: foreignKey)
+        let destinationTable = destinationRelation.source.tableName
         
-        let condition = SQLAssociationCondition.foreignKey(
-            request: foreignKeyRequest,
+        let foreignKeyCondition = SQLForeignKeyCondition(
+            destinationTable: destinationTable,
+            foreignKey: foreignKey,
             originIsLeft: true)
         
         let associationKey: SQLAssociationKey
         if let key = key {
             associationKey = .fixedSingular(key)
         } else {
-            associationKey = .inflected(Destination.databaseTableName)
+            associationKey = .inflected(destinationTable)
         }
         
         _sqlAssociation = _SQLAssociation(
             key: associationKey,
-            condition: condition,
-            relation: Destination.relationForAll,
+            condition: .foreignKey(foreignKeyCondition),
+            relation: destinationRelation,
             cardinality: .toOne)
     }
 }

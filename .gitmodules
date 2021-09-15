@@ -1,0 +1,9 @@
+[submodule "Alamofire"]
+	path = Alamofire
+	url = https://github.com/Alamofire/Alamofire.git
+[submodule "GRDB.swift"]
+	path = GRDB.swift
+	url = https://github.com/groue/GRDB.swift.git
+[submodule "AlamofireImage"]
+	path = AlamofireImage
+	url = https://github.com/Alamofire/AlamofireImage.git

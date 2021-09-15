@@ -1,0 +1,43 @@
+PODS:
+  - Alamofire (5.3.0)
+  - AlamofireImage (4.1.0):
+    - Alamofire (~> 5.1)
+  - GRDB.swift (5.0.2):
+    - GRDB.swift/standard (= 5.0.2)
+  - GRDB.swift/standard (5.0.2)
+  - RAMAnimatedTabBarController (5.2.0)
+  - SwiftyJSON (4.3.0)
+  - Toast-Swift (5.0.1)
+  - TransitionableTab (0.2.0)
+
+DEPENDENCIES:
+  - Alamofire (~> 5.2)
+  - AlamofireImage (~> 4.1)
+  - GRDB.swift
+  - RAMAnimatedTabBarController
+  - SwiftyJSON (~> 4.0)
+  - Toast-Swift (~> 5.0.1)
+  - TransitionableTab (~> 0.2.0)
+
+SPEC REPOS:
+  trunk:
+    - Alamofire
+    - AlamofireImage
+    - GRDB.swift
+    - RAMAnimatedTabBarController
+    - SwiftyJSON
+    - Toast-Swift
+    - TransitionableTab
+
+SPEC CHECKSUMS:
+  Alamofire: 2c792affbdc2f18016e08fdbcacd60aebe1ba593
+  AlamofireImage: c4a2ba349885fb3064feb74d2e547bd42ce9be10
+  GRDB.swift: 80a9189aef4b9e0c8f52b942477dba670de055a7
+  RAMAnimatedTabBarController: 6863a386e7ae2ab227cd60aa73ab8ff56cdacfdd
+  SwiftyJSON: 6faa0040f8b59dead0ee07436cbf76b73c08fd08
+  Toast-Swift: 9b6a70f28b3bf0b96c40d46c0c4b9d6639846711
+  TransitionableTab: 54a5d0af475033bdb83959fde4e5d6201af7e2ab
+
+PODFILE CHECKSUM: 9a2bc5ccf5576c193150a75ea8825ef182445069
+
+COCOAPODS: 1.9.3

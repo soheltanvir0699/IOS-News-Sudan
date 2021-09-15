@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="17156" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina6_1" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="17125"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="default" indentationWidth="10" reuseIdentifier="HeaderCell" rowHeight="282" id="oSR-wr-2pV" customClass="HeaderNewsListTableViewCell" customModule="IOS_News_App" customModuleProvider="target">
+            <rect key="frame" x="0.0" y="0.0" width="414" height="282"/>
+            <autoresizingMask key="autoresizingMask"/>
+            <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" preservesSuperviewLayoutMargins="YES" insetsLayoutMarginsFromSafeArea="NO" tableViewCell="oSR-wr-2pV" id="aj1-KB-ldH">
+                <rect key="frame" x="0.0" y="0.0" width="414" height="282"/>
+                <autoresizingMask key="autoresizingMask"/>
+                <subviews>
+                    <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="default" translatesAutoresizingMaskIntoConstraints="NO" id="vDP-11-jlA">
+                        <rect key="frame" x="8" y="8" width="398" height="266"/>
+                        <userDefinedRuntimeAttributes>
+                            <userDefinedRuntimeAttribute type="number" keyPath="cornerRadius">
+                                <real key="value" value="10"/>
+                            </userDefinedRuntimeAttribute>
+                        </userDefinedRuntimeAttributes>
+                    </imageView>
+                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" numberOfLines="4" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="MBj-Zq-Jzo">
+                        <rect key="frame" x="28" y="222.5" width="358" height="22.5"/>
+                        <fontDescription key="fontDescription" name="Futura-Bold" family="Futura" pointSize="17"/>
+                        <color key="textColor" red="0.99999600649999998" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                    <stackView opaque="NO" contentMode="scaleToFill" spacing="8" translatesAutoresizingMaskIntoConstraints="NO" id="tXV-O7-Itr">
+                        <rect key="frame" x="28" y="253" width="358" height="10"/>
+                        <subviews>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="access_time_white" translatesAutoresizingMaskIntoConstraints="NO" id="teJ-Jq-oQ8">
+                                <rect key="frame" x="0.0" y="0.0" width="10" height="10"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="10" id="8qj-Z9-cO1"/>
+                                    <constraint firstAttribute="height" constant="10" id="ZN0-fu-d70"/>
+                                </constraints>
+                            </imageView>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" verticalHuggingPriority="251" text="Label" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="nOr-Fp-FqQ">
+                                <rect key="frame" x="18" y="0.0" width="284.5" height="10"/>
+                                <fontDescription key="fontDescription" name="Futura-Medium" family="Futura" pointSize="12"/>
+                                <color key="textColor" red="0.99999600649999998" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="ic_comment_white" translatesAutoresizingMaskIntoConstraints="NO" id="Mmu-V0-shd">
+                                <rect key="frame" x="310.5" y="0.0" width="10" height="10"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="10" id="O6M-8i-Gtb"/>
+                                    <constraint firstAttribute="height" constant="10" id="sEo-fG-D92"/>
+                                </constraints>
+                            </imageView>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="0oV-81-S18">
+                                <rect key="frame" x="328.5" y="0.0" width="29.5" height="10"/>
+                                <fontDescription key="fontDescription" name="Futura-Medium" family="Futura" pointSize="12"/>
+                                <color key="textColor" red="0.99999600649999998" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                        </subviews>
+                    </stackView>
+                    <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="play_circle_outline_grey" translatesAutoresizingMaskIntoConstraints="NO" id="wwD-vJ-0L3">
+                        <rect key="frame" x="187" y="121" width="40" height="40"/>
+                        <constraints>
+                            <constraint firstAttribute="width" constant="40" id="IxI-y8-JhR"/>
+                            <constraint firstAttribute="height" constant="40" id="QZN-ot-MI4"/>
+                        </constraints>
+                    </imageView>
+                </subviews>
+                <constraints>
+                    <constraint firstItem="wwD-vJ-0L3" firstAttribute="centerY" secondItem="aj1-KB-ldH" secondAttribute="centerY" id="1Ba-C3-AsO"/>
+                    <constraint firstAttribute="trailingMargin" secondItem="tXV-O7-Itr" secondAttribute="trailing" constant="8" id="1Le-9l-Uxl"/>
+                    <constraint firstAttribute="bottomMargin" secondItem="tXV-O7-Itr" secondAttribute="bottom" constant="8" id="QlO-eI-pzd"/>
+                    <constraint firstAttribute="trailing" secondItem="vDP-11-jlA" secondAttribute="trailing" constant="8" id="UU1-cZ-dq7"/>
+                    <constraint firstItem="wwD-vJ-0L3" firstAttribute="centerX" secondItem="aj1-KB-ldH" secondAttribute="centerX" id="XxG-AH-JuL"/>
+                    <constraint firstItem="vDP-11-jlA" firstAttribute="leading" secondItem="aj1-KB-ldH" secondAttribute="leading" constant="8" id="ZGl-Ml-yO0"/>
+                    <constraint firstItem="vDP-11-jlA" firstAttribute="top" secondItem="aj1-KB-ldH" secondAttribute="top" constant="8" id="bQG-nD-N5v"/>
+                    <constraint firstAttribute="bottom" secondItem="vDP-11-jlA" secondAttribute="bottom" constant="8" id="drb-ZG-KdM"/>
+                    <constraint firstItem="tXV-O7-Itr" firstAttribute="leading" secondItem="aj1-KB-ldH" secondAttribute="leadingMargin" constant="8" id="h1w-gM-PnL"/>
+                    <constraint firstItem="MBj-Zq-Jzo" firstAttribute="leading" secondItem="aj1-KB-ldH" secondAttribute="leadingMargin" constant="8" id="sMy-e5-lNZ"/>
+                    <constraint firstItem="tXV-O7-Itr" firstAttribute="top" secondItem="MBj-Zq-Jzo" secondAttribute="bottom" constant="8" id="u4i-JR-uSw"/>
+                    <constraint firstAttribute="trailingMargin" secondItem="MBj-Zq-Jzo" secondAttribute="trailing" constant="8" id="v2f-Ea-kk3"/>
+                </constraints>
+            </tableViewCellContentView>
+            <connections>
+                <outlet property="imagePlay" destination="wwD-vJ-0L3" id="6IP-7T-8YT"/>
+                <outlet property="postComments" destination="0oV-81-S18" id="gJi-Hf-M3D"/>
+                <outlet property="postCommentsImage" destination="Mmu-V0-shd" id="wwl-6o-9qo"/>
+                <outlet property="postDate" destination="nOr-Fp-FqQ" id="K8y-Mc-IYi"/>
+                <outlet property="postImage2" destination="vDP-11-jlA" id="Q2A-zD-0c3"/>
+                <outlet property="postTitle" destination="MBj-Zq-Jzo" id="GZm-5g-VQj"/>
+            </connections>
+            <point key="canvasLocation" x="50.724637681159422" y="351.5625"/>
+        </tableViewCell>
+    </objects>
+    <resources>
+        <image name="access_time_white" width="36" height="36"/>
+        <image name="default" width="128" height="128"/>
+        <image name="ic_comment_white" width="36" height="36"/>
+        <image name="play_circle_outline_grey" width="36" height="36"/>
+    </resources>
+</document>

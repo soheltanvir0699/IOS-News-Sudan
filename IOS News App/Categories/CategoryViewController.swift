@@ -4,6 +4,7 @@ import AVFoundation
 import Alamofire
 import Toast_Swift
 import SwiftyJSON
+import UserNotifications
 
 class CategoryViewController: UICollectionViewController {
 
@@ -17,6 +18,31 @@ class CategoryViewController: UICollectionViewController {
   
   override func viewDidLoad() {
     super.viewDidLoad()
+//    let center = UNUserNotificationCenter.current()
+//
+//        center.requestAuthorization(options: [.alert, .badge, .sound]) { (granted, error) in
+//            if granted {
+//                print("Yay!")
+//            } else {
+//                print("D'oh")
+//            }
+//        }
+//
+//        let content = UNMutableNotificationContent()
+//        content.title = "Late wake up call"
+//        content.body = "The early bird catches the worm, but the second mouse gets the cheese."
+//        content.categoryIdentifier = "alarm"
+//        content.userInfo = ["customData": "fizzbuzz"]
+//        content.sound = UNNotificationSound.default
+//
+//        var dateComponents = DateComponents()
+//        dateComponents.hour = 11
+//        dateComponents.minute = 05
+//        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+//
+//        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+//        center.add(request)
+    
     self.navigationItem.title = "Categories"
 
     getCategories()

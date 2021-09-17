@@ -355,6 +355,21 @@ class NewsListViewController: UIViewController, UITableViewDataSource, UITableVi
                         }
                     }
                     if self.news.count > 0 {
+                        let PostVC : NewsDetailViewController = self.storyboard!.instantiateViewController(withIdentifier: "NewsDetailViewController") as! NewsDetailViewController
+                        for (i,data) in self.news.enumerated() {
+                            guard let data2 = data as? News else {
+                                return
+                            }
+                            print(data2.news_title)
+                            if data2.news_title == UserDefaults.standard.value(forKey: "title") as? String {
+                                PostVC.news = data2
+                                PostVC.indexRow = i
+
+                                self.navigationController?.pushViewController(PostVC, animated: true)
+                                UserDefaults.standard.set("", forKey: "title")
+                            }
+                        }
+                        
                         self.view.hideToastActivity()
                         self.tableView.reloadData()
 

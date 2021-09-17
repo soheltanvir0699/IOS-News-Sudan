@@ -26,7 +26,7 @@ import OneSignal
 var dbQueue: DatabaseQueue!
 
 @UIApplicationMain
-class AppDelegate: UIResponder, UIApplicationDelegate, OSSubscriptionObserver {
+class AppDelegate: UIResponder, UIApplicationDelegate, OSSubscriptionObserver, UNUserNotificationCenterDelegate {
     func onOSSubscriptionChanged(_ stateChanges: OSSubscriptionStateChanges) {
         
     }
@@ -74,7 +74,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, OSSubscriptionObserver {
             print("User accepted notifications: \(accepted)")
           })
         OneSignal.add(self as OSSubscriptionObserver)
-        
+        if #available(iOS 10.0, *) {
+            let center = UNUserNotificationCenter.current()
+                center.delegate = self
+            }
         
         //Setup Navigation Bar text color and background
         UINavigationBar.appearance().tintColor = UIColor.white
@@ -82,7 +85,51 @@ class AppDelegate: UIResponder, UIApplicationDelegate, OSSubscriptionObserver {
         
         return true
     }
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+            print("didReceive response")
+//        UserDefaults.standard.set(1, forKey: "value")
+        print(response.notification.request.content.title)
+        UserDefaults.standard.set("\(response.notification.request.content.title)", forKey: "title")
+            completionHandler()
+        }
 
+    
+    @available(iOS 10.0, *)
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        
+        completionHandler(UNNotificationPresentationOptions.alert)
+        
+        //OnReceive Notification
+        let userInfo = notification.request.content.userInfo
+        for key in userInfo.keys {
+//             Constants.setPrint("\(key): \(userInfo[key])")
+            print(key, userInfo[key])
+            print("hfksfkhskfhks",userInfo, "ssldjlsjfljafajfsjfljslfjlsfjlsf")
+        }
+        
+        completionHandler([])
+        
+    }
+    func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+//        print(userInfo["custom"])
+//        print(userInfo["title"])
+//        print(userInfo["message"])
+//        print(userInfo["custom"])
+//        if let aps = userInfo["custom"] as? NSDictionary {
+//            if let alert = aps["a"] as? NSDictionary {
+//                if  let message = alert["body"] as? NSString {
+//                    //Do stuff
+//                    print(message)
+//                 }
+//            } else if let alert = aps["a"] as? NSString {
+//                //Do stuff
+//                print(alert)
+//            }
+//        }
+        print("hfksfkhskfhks",userInfo, "ssldjlsjfljafajfsjfljslfjlsfjlsf")
+        completionHandler(.newData)
+    }
     func applicationWillResignActive(_ application: UIApplication) {
         // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
         // Use this method to pause ongoing tasks, disable timers, and invalidate graphics rendering callbacks. Games should use this method to pause the game.
@@ -118,6 +165,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, OSSubscriptionObserver {
         // Be a nice iOS citizen, and don't consume too much memory
         // See https://github.com/groue/GRDB.swift/#memory-management
 //        dbQueue.setupMemoryManagement(in: application)
+        
     }
     
     

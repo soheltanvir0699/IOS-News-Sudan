@@ -28,13 +28,24 @@ class VideoListViewController: UIViewController, UITableViewDataSource, UITableV
         self.tableView.delegate = self
         self.tableView.dataSource = self
         self.tableView.separatorStyle = .none
+        let refreshControl = UIRefreshControl()
+        refreshControl.addTarget(self, action:  #selector(refreshControlValueChanged), for: .valueChanged)
+        tableView.addSubview(refreshControl)
         
         setGradientNavigationBar()
         getVideos(pagenb: pagenumber)
         
     }
     
-    
+    @IBAction func refreshControlValueChanged(_ sender: UIRefreshControl) {
+            pagenumber = 1
+            news.removeAll()
+            count_sum=0
+            getVideos(pagenb: pagenumber)
+            self.tableView.reloadData()
+            sender.endRefreshing()
+        
+    }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return news.count

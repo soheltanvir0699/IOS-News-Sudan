@@ -7,7 +7,8 @@ import SwiftyJSON
 import UserNotifications
 
 class CategoryViewController: UICollectionViewController {
-
+    @IBOutlet var catColl: UICollectionView!
+    var refreshControl = UIRefreshControl()
     var category = [Category]()
     var status: String = ""
     var count: Int = 0
@@ -15,9 +16,27 @@ class CategoryViewController: UICollectionViewController {
   override var preferredStatusBarStyle: UIStatusBarStyle {
     return .lightContent
   }
-  
+    @objc func refreshControlValueChanged() {
+        category.removeAll()
+        
+        getCategories()
+            self.catColl.reloadData()
+        refreshControl.endRefreshing()
+        
+        
+    }
+    func setupCollectionView(){
+          catColl.delegate = self
+          catColl.dataSource = self
+          catColl.alwaysBounceVertical = true
+          self.refreshControl = UIRefreshControl()
+          self.refreshControl.attributedTitle = NSAttributedString(string: "Refreshing content...")
+          self.refreshControl.addTarget(self, action: #selector(self.refreshControlValueChanged), for: .valueChanged)
+          catColl!.addSubview(refreshControl)
+    }
   override func viewDidLoad() {
     super.viewDidLoad()
+    setupCollectionView()
 //    let center = UNUserNotificationCenter.current()
 //
 //        center.requestAuthorization(options: [.alert, .badge, .sound]) { (granted, error) in
@@ -104,7 +123,7 @@ extension CategoryViewController: PinterestLayoutDelegate {
     return 200
   }
 
-    func getCategories() {
+   func getCategories() {
         
         self.view.makeToastActivity(.center)
 
